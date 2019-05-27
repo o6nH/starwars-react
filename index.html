@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link href="https://fonts.googleapis.com/css?family=Fredoka+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+
+  <style>
+    body {
+      font-family: 'Courier New', Courier, monospace;
+    }
+    h1 {
+      position: 'fixed';
+      font-family: 'Fredoka One','Courier New', Courier, monospace; 
+    }
+    .infoBody {
+      display: flex;
+      flex-flow: row wrap;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root" class='container'></div>
+
+  <script type="text/babel">
+  // Components
+  class Main extends React.Component{
+    constructor(props) {
+      super(props)
+      this.state = {
+        people: [],
+        personSelected: {},
+      }
+      this.peopleEndpoint = 'https://swapi.co/api/people/?page=1';
+      this.updatePersonSelected = this.updatePersonSelected.bind(this);
+      this.hashListener = window.addEventListener('hashchange', this.updatePersonSelected);
+    }
+
+    render() {
+      return (
+        <div>
+          <Title />
+          <div className='infoBody'>
+            <PeopleList people={this.state.people} personSelected={this.state.personSelected}/>
+            { 
+              this.state.personSelected.name ? 
+              <Profile personSelected={this.state.personSelected} /> : ''
+            }
+          </div>
+        </div>
+      )
+    }
+
+    // Fetch call to API
+    async componentDidMount() {
+      const peopleArr = [];
+      while(this.peopleEndpoint !== null){
+        const response = await axios(this.peopleEndpoint);
+        const people = response.data;
+        peopleArr.push(...people.results);
+        this.peopleEndpoint = people.next;
+        this.setState({people: peopleArr});
+      }
+      
+      let hash = window.location.hash.slice(1)*1;
+      if(hash >= 0){
+        this.setState({personSelected: peopleArr[hash]})
+      }
+    }
+
+    updatePersonSelected() {
+      let hash = window.location.hash.slice(1);
+      if(hash && this.state.people.length > 0){
+        hash *= 1;
+        this.setState({personSelected: this.state.people[hash]})
+      } else {
+        this.setState({personSelected:{}})
+      }
+    }
+  }
+
+  const Title = () => (<h1>Star Wars People!</h1>);
+
+  const PeopleList = (props) => {
+    return (
+      <div className="list-group">
+        {
+          props.people.map((person,index) => 
+            <Person key={person.name} id={index} person={person}
+            personSelected={props.personSelected}/>)
+        }
+      </div>
+    )
+  }
+
+  const Person = (props) => {
+    let classes = "list-group-item list-group-item-action";
+    if(props.personSelected.name === props.person.name){
+      classes += " active"
+    }
+    return <a href={`#${props.id}`} className={classes}>{props.person.name}</a>;
+  }
+
+  const Profile = (props) => {
+    return (
+        <div className="card card-body">
+          <a href='#'>Hide Details</a>
+          <ul className="list-group">
+           <ListDetails personSelected={props.personSelected} />
+          </ul>
+        </div>
+    )
+  }
+
+  const ListDetails = (props) => (
+    Object.keys(props.personSelected).map((key,indx) =>
+      <li key={indx} className="list-group-item">
+      <strong>{key}: </strong>
+      {
+        Array.isArray(props.personSelected[key]) ? 
+          props.personSelected[key].map((val,indx) => 
+            <p key={indx}>{val}</p>) : props.personSelected[key]
+      }
+      </li>
+    )
+  )
+
+  // DOM Rendering
+  ReactDOM.render(<Main />, document.querySelector('#root'))
+    
+</script>
+</body>
+</html>
